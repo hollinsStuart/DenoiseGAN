@@ -1,10 +1,23 @@
+import os
+
 import torch
-import torch.optim as optim
-from models.generator import UNetGenerator
-from models.discriminator import Discriminator
-from utils.loss import FocalLoss
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
+from torchvision.utils import save_image
+
+# Create directories to store results
+os.makedirs('checkpoints', exist_ok=True)
+os.makedirs('generated_images', exist_ok=True)
+
+
+def save_checkpoint(model, optimizer, epoch, filename):
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict()
+    }
+    torch.save(checkpoint, filename)
 
 
 def train(generator, discriminator, dataloader, epochs, device, num_classes):
@@ -16,6 +29,9 @@ def train(generator, discriminator, dataloader, epochs, device, num_classes):
 
     generator.to(device)
     discriminator.to(device)
+
+    g_loss_history = []
+    d_loss_history = []
 
     for epoch in range(epochs):
         for i, (noisy_images, clean_images, labels) in enumerate(dataloader):
@@ -50,4 +66,21 @@ def train(generator, discriminator, dataloader, epochs, device, num_classes):
             g_loss.backward()
             optimizer_G.step()
 
-            print(f'Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(dataloader)}], D Loss: {d_loss.item()}, G Loss: {g_loss.item()}')
+            # Save loss values for tracking
+            g_loss_history.append(g_loss.item())
+            d_loss_history.append(d_loss.item())
+
+            # Print losses
+            print(
+                f'Epoch [{epoch + 1}/{epochs}], Step [{i + 1}/{len(dataloader)}], D Loss: {d_loss.item()}, G Loss: {g_loss.item()}')
+
+            # Save generated images every 100 steps
+            if (i + 1) % 100 == 0:
+                save_image(fake_images.data[:25], f'generated_images/fake_image_epoch_{epoch + 1}_step_{i + 1}.png',
+                           nrow=5, normalize=True)
+
+        # Save model checkpoints every epoch
+        save_checkpoint(generator, optimizer_G, epoch + 1, f'checkpoints/generator_epoch_{epoch + 1}.pth')
+        save_checkpoint(discriminator, optimizer_D, epoch + 1, f'checkpoints/discriminator_epoch_{epoch + 1}.pth')
+
+    return g_loss_history, d_loss_history

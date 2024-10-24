@@ -10,6 +10,9 @@ results
 output_images
 *.png
 
+# Dataset
+data/random_greyscale_images
+
 # EECS 485 All Projects
 submit.tar.gz
 submit.tar.xz
