@@ -6,11 +6,11 @@ class UNetGenerator(nn.Module):
     def __init__(self, num_classes):
         super(UNetGenerator, self).__init__()
 
-        # Concatenate noise and class labels at the input
-        input_dim = 100 + num_classes  # noise vector length (100) + number of classes
+        # Adjust the input channels to match the 3-channel input (1 grayscale + 2 label channels)
+        input_channels = 1 + num_classes  # 1 for grayscale image, 2 for one-hot labels
 
-        # Modify the first layer to accept the concatenated input
-        self.down1 = self.down_block(input_dim, 64)  # Adjust input dimension
+        # Modify the first layer to accept the concatenated input with 3 channels
+        self.down1 = self.down_block(input_channels, 64)  # Adjust input dimension to 3 channels
         self.down2 = self.down_block(64, 128)
         self.down3 = self.down_block(128, 256)
         self.down4 = self.down_block(256, 512)
@@ -34,24 +34,31 @@ class UNetGenerator(nn.Module):
             nn.Tanh()  # Output range [-1, 1]
         )
 
-    def forward(self, z, labels):
-        # Concatenate noise vector (z) and one-hot encoded labels
-        z = torch.cat([z, labels], dim=1)
-        z = z.view(z.size(0), -1, 1, 1)  # Reshape to match Conv2D input
+    def forward(self, noised_image, labels):
+        # Expand labels to match the spatial dimensions of `noised_image`
+        labels = labels.view(labels.size(0), labels.size(1), 1, 1)  # Shape: [batch_size, 2, 1, 1]
+        labels = labels.expand(-1, -1, noised_image.size(2), noised_image.size(3))  # Expand to match spatial dimensions
 
-        d1 = self.down1(z)
+        # Concatenate the grayscale noised image and label channels along the channel dimension
+        x = torch.cat([noised_image, labels], dim=1)  # Expected input shape: [batch_size, 3, H, W]
+
+        # Pass through the downsampling and bottleneck layers
+        d1 = self.down1(x)
         d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
 
         bottleneck = self.bottleneck(d4)
 
+        # Pass through upsampling layers with skip connections
         u4 = self.up4(bottleneck)
-        u3 = self.up3(torch.cat([u4, d4], dim=1))  # Skip connection
+        u3 = self.up3(torch.cat([u4, d4], dim=1))
         u2 = self.up2(torch.cat([u3, d3], dim=1))
         u1 = self.up1(torch.cat([u2, d2], dim=1))
 
+        # Output the final denoised image
         return self.final(torch.cat([u1, d1], dim=1))
+
 
     def down_block(self, in_channels, out_channels):
         """

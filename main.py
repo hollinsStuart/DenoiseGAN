@@ -13,7 +13,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Hyperparameters
 epochs = 5
-batch_size = 64
+batch_size = 16
 num_classes = 2  # Set the number of classes
 
 # Define image transformations (if needed)

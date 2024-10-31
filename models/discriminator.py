@@ -6,7 +6,6 @@ class Discriminator(nn.Module):
     def __init__(self, num_classes):
         super(Discriminator, self).__init__()
 
-        # Modify input to accept image channels + labels concatenated
         input_channels = 1 + num_classes  # 1 channel for grayscale image + num_classes for one-hot labels
 
         self.model = nn.Sequential(
@@ -15,6 +14,7 @@ class Discriminator(nn.Module):
             self.block(128, 256),
             self.block(256, 512),
             nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
+            nn.AdaptiveAvgPool2d((1, 1)),  # Global pooling to reduce spatial dimensions
             nn.Sigmoid()
         )
 
@@ -26,8 +26,8 @@ class Discriminator(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, img, labels):
-        # Concatenate the image with the labels
         labels = labels.view(labels.size(0), -1, 1, 1)  # Reshape labels to match image dimensions
         labels = labels.expand(labels.size(0), labels.size(1), img.size(2), img.size(3))  # Expand to match img
         img_with_labels = torch.cat([img, labels], dim=1)
-        return self.model(img_with_labels)
+        output = self.model(img_with_labels)
+        return output.view(output.size(0), -1)  # Flatten to [batch_size, 1]

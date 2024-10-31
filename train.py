@@ -37,20 +37,23 @@ def train(generator, discriminator, dataloader, epochs, device, num_classes):
         for i, (noisy_images, clean_images, labels) in enumerate(dataloader):
             noisy_images = noisy_images.to(device)
             clean_images = clean_images.to(device)
-            labels = F.one_hot(labels, num_classes).float().to(device)  # Convert labels to one-hot
+            labels = F.one_hot(labels, num_classes=2).float().to(device)  # One-hot encode with 2 classes
 
             # Training Discriminator
             optimizer_D.zero_grad()
             real_labels = torch.ones(clean_images.size(0), 1).to(device)
             fake_labels = torch.zeros(clean_images.size(0), 1).to(device)
 
-            # Real images + real labels
+            # Discriminator on real (clear) images
             outputs = discriminator(clean_images, labels)
+            print(outputs.size())
+            outputs = outputs.view(outputs.size(0), -1).mean(dim=1, keepdim=True)  # Ensure outputs is [batch_size, 1]
             d_loss_real = adv_loss(outputs, real_labels)
 
-            # Fake images + real labels
+            # Discriminator on fake (generated denoised) images
             fake_images = generator(noisy_images, labels)
             outputs = discriminator(fake_images.detach(), labels)
+            outputs = outputs.view(outputs.size(0), -1).mean(dim=1, keepdim=True)  # Ensure outputs is [batch_size, 1]
             d_loss_fake = adv_loss(outputs, fake_labels)
 
             d_loss = d_loss_real + d_loss_fake
@@ -61,26 +64,13 @@ def train(generator, discriminator, dataloader, epochs, device, num_classes):
             optimizer_G.zero_grad()
             fake_images = generator(noisy_images, labels)
             outputs = discriminator(fake_images, labels)
+            outputs = outputs.view(outputs.size(0), -1).mean(dim=1, keepdim=True)  # Ensure outputs is [batch_size, 1]
             g_loss = adv_loss(outputs, real_labels) + criterion(fake_images, clean_images)
 
             g_loss.backward()
             optimizer_G.step()
 
-            # Save loss values for tracking
-            g_loss_history.append(g_loss.item())
-            d_loss_history.append(d_loss.item())
+            print(f'Epoch [{epoch + 1}/{epochs}], Step [{i + 1}/{len(dataloader)}], D Loss: {d_loss.item()}, G Loss: {g_loss.item()}')
 
-            # Print losses
-            print(
-                f'Epoch [{epoch + 1}/{epochs}], Step [{i + 1}/{len(dataloader)}], D Loss: {d_loss.item()}, G Loss: {g_loss.item()}')
-
-            # Save generated images every 100 steps
-            if (i + 1) % 100 == 0:
-                save_image(fake_images.data[:25], f'generated_images/fake_image_epoch_{epoch + 1}_step_{i + 1}.png',
-                           nrow=5, normalize=True)
-
-        # Save model checkpoints every epoch
-        save_checkpoint(generator, optimizer_G, epoch + 1, f'checkpoints/generator_epoch_{epoch + 1}.pth')
-        save_checkpoint(discriminator, optimizer_D, epoch + 1, f'checkpoints/discriminator_epoch_{epoch + 1}.pth')
 
     return g_loss_history, d_loss_history
