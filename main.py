@@ -3,7 +3,7 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-from data.dataset import DenoisingDataset
+from data.dataset import DenoisingDataset, XRayDataset
 from models.discriminator import Discriminator
 from models.generator import UNetGenerator
 from train import train
@@ -22,14 +22,26 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize to [-1, 1] range
 ])
 
-# Dataset and Dataloader
-noisy_dir = './data/random_greyscale_images/class1'
-clean_dir = './data/random_greyscale_images/class2'
-label_file = './data/random_greyscale_images/fake_labels.txt'  # File containing labels
+# Dataset and Dataloader for random greyscale images
+# noisy_dir = './data/random_greyscale_images/class1'
+# clean_dir = './data/random_greyscale_images/class2'
+# label_file = './data/random_greyscale_images/fake_labels.txt'  # File containing labels
+
+# # Initialize the dataset with the labels file
+# dataset = DenoisingDataset(noisy_dir=noisy_dir, clean_dir=clean_dir, label_file=label_file, transform=transform)
+# dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+# ---- End of random dataset setup----
+
+# ----- XRays dataset -----
+noisy_dir = '/Users/hollins/S2025/XRayData/manifest-1610656454899/noisy_numpy'
+clean_dir = '/Users/hollins/S2025/XRayData/manifest-1610656454899/clear_numpy'
+label_file = '/Users/hollins/S2025/XRayData/manifest-1610656454899/label_file.txt'  # File containing labels
 
 # Initialize the dataset with the labels file
 dataset = DenoisingDataset(noisy_dir=noisy_dir, clean_dir=clean_dir, label_file=label_file, transform=transform)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+# ---- End of XRay dataset setup----
 
 # Model initialization
 generator = UNetGenerator(num_classes=num_classes)

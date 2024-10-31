@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class UNetGenerator(nn.Module):
@@ -52,12 +53,20 @@ class UNetGenerator(nn.Module):
 
         # Pass through upsampling layers with skip connections
         u4 = self.up4(bottleneck)
-        u3 = self.up3(torch.cat([u4, d4], dim=1))
-        u2 = self.up2(torch.cat([u3, d3], dim=1))
-        u1 = self.up1(torch.cat([u2, d2], dim=1))
+        
+        # Add padding if dimensions do not match before concatenation
+        d4_padded = F.pad(d4, (0, u4.size(3) - d4.size(3), 0, u4.size(2) - d4.size(2)))
+        u3 = self.up3(torch.cat([u4, d4_padded], dim=1))
 
-        # Output the final denoised image
-        return self.final(torch.cat([u1, d1], dim=1))
+        d3_padded = F.pad(d3, (0, u3.size(3) - d3.size(3), 0, u3.size(2) - d3.size(2)))
+        u2 = self.up2(torch.cat([u3, d3_padded], dim=1))
+
+        d2_padded = F.pad(d2, (0, u2.size(3) - d2.size(3), 0, u2.size(2) - d2.size(2)))
+        u1 = self.up1(torch.cat([u2, d2_padded], dim=1))
+
+        # Final output layer
+        d1_padded = F.pad(d1, (0, u1.size(3) - d1.size(3), 0, u1.size(2) - d1.size(2)))
+        return self.final(torch.cat([u1, d1_padded], dim=1))
 
 
     def down_block(self, in_channels, out_channels):

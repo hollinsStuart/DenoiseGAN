@@ -6,6 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision.utils import save_image
 
+from tqdm import tqdm
+
 # Create directories to store results
 os.makedirs('checkpoints', exist_ok=True)
 os.makedirs('generated_images', exist_ok=True)
@@ -33,7 +35,7 @@ def train(generator, discriminator, dataloader, epochs, device, num_classes):
     g_loss_history = []
     d_loss_history = []
 
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         for i, (noisy_images, clean_images, labels) in enumerate(dataloader):
             noisy_images = noisy_images.to(device)
             clean_images = clean_images.to(device)
